@@ -22,6 +22,10 @@ export interface PullRequestItem {
   author: string | null;
   /** GitHub's merge state. CONFLICTING = has conflicts; UNKNOWN = not yet computed. */
   mergeable: "MERGEABLE" | "CONFLICTING" | "UNKNOWN";
+  /** Source branch (head), e.g. "feat/ui". */
+  headRef: string;
+  /** Target branch (base) the PR merges into, e.g. "main". */
+  baseRef: string;
   /** The signed-in user's review is directly requested on this PR. */
   reviewRequestedForMe: boolean;
   lastActivity: PrLastActivity;
@@ -46,6 +50,33 @@ export interface ActionFailure {
   score: number;
 }
 
+/** Which tier a notification falls in, from most to least "waiting on you". */
+export type NotificationTier = "act" | "involved" | "fyi";
+
+/** One GitHub notification thread the user is subscribed to / participating in. */
+export interface NotificationItem {
+  id: string;
+  repo: string; // "owner/name"
+  /** repository.html_url — always present, used as a link fallback. */
+  repoUrl: string;
+  /** Raw GitHub reason, e.g. "review_requested" | "mention" | "ci_activity". */
+  reason: string;
+  /** Humanized reason, e.g. "review requested". */
+  reasonLabel: string;
+  tier: NotificationTier;
+  /** subject.type, e.g. "PullRequest" | "Issue" | "Discussion" | "CheckSuite". */
+  subjectType: string;
+  title: string;
+  /** Derived browser URL (falls back to repoUrl), so the row is always clickable. */
+  url: string;
+  unread: boolean;
+  updatedAt: string; // ISO
+  /** ms since the thread last updated, at generation time. */
+  ageMs: number;
+  /** Ranking score (higher = more "waiting on you"). */
+  score: number;
+}
+
 export interface RepoError {
   repo: string; // "owner/name"
   message: string;
@@ -67,6 +98,10 @@ export interface GithubData {
   reposWithOpenPrs: number;
   prs: PullRequestItem[];
   actions: ActionFailure[];
+  /** Account-wide GitHub notifications, ranked most "waiting on you" first. */
+  notifications: NotificationItem[];
+  /** True when the notifications fetch hit its page cap (more exist than shown). */
+  notificationsTruncated: boolean;
   focus: FocusItem[];
   errors: RepoError[];
 }

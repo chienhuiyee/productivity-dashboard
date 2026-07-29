@@ -23,6 +23,8 @@ function makePr(overrides: Partial<RawPr> = {}): RawPr {
     url: "https://github.com/o/r/pull/1",
     isDraft: false,
     mergeable: "MERGEABLE",
+    headRefName: "feat/x",
+    baseRefName: "main",
     createdAt: "2026-01-14T00:00:00.000Z",
     updatedAt: "2026-01-14T00:00:00.000Z",
     author: { login: "human" },
@@ -106,6 +108,18 @@ describe("parseRepo", () => {
     expect(prs[0].lastActivity.kind).toBe("comment");
     expect(prs[0].lastActivity.author).toBe("dependabot[bot]");
     expect(prs[0].lastActivity.isBot).toBe(true);
+  });
+
+  it("captures the source and target branches", () => {
+    const raw = makeRepo({
+      pullRequests: {
+        totalCount: 1,
+        nodes: [makePr({ headRefName: "feat/ui", baseRefName: "main" })],
+      },
+    });
+    const { prs } = parseRepo(raw, "me", NOW);
+    expect(prs[0].headRef).toBe("feat/ui");
+    expect(prs[0].baseRef).toBe("main");
   });
 
   it("normalizes mergeable state, defaulting unknown values", () => {

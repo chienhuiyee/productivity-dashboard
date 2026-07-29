@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, Copy, GitPullRequest, X } from "lucide-react";
+import { Check, Copy, GitBranch, GitPullRequest, X } from "lucide-react";
 import type { PullRequestItem } from "@/lib/github/types";
 import { Badge } from "@/components/ui/Badge";
 import { CopyButton } from "@/components/ui/CopyButton";
@@ -81,7 +81,14 @@ export function PullRequestsWidget({
     const q = filter.trim().toLowerCase();
     let list = filterByFocus(prs, focus);
     if (q) {
-      list = list.filter((p) => p.title.toLowerCase().includes(q) || p.repo.toLowerCase().includes(q));
+      list = list.filter(
+        (p) =>
+          p.title.toLowerCase().includes(q) ||
+          p.repo.toLowerCase().includes(q) ||
+          `#${p.number}`.includes(q) ||
+          !!p.author?.toLowerCase().includes(q) ||
+          !!p.lastActivity.author?.toLowerCase().includes(q),
+      );
     }
 
     if (sort === "oldest") {
@@ -108,7 +115,7 @@ export function PullRequestsWidget({
             <input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder="Filter by title or repo…"
+              placeholder="Filter by #number, title, repo, or name…"
               className="min-w-0 flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-accent"
               aria-label="Filter pull requests"
             />
@@ -184,7 +191,19 @@ export function PullRequestsWidget({
                         <p className="mt-0.5 text-sm text-muted">
                           {pr.repo} #{pr.number} · opened <RelativeTime iso={pr.createdAt} />
                         </p>
-                        <p className="mt-0.5 text-xs text-muted">
+                        <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
+                          <GitBranch className="h-3 w-3 shrink-0" strokeWidth={1.75} aria-hidden />
+                          <span className="min-w-0 truncate font-mono" title={pr.headRef}>
+                            {pr.headRef}
+                          </span>
+                          <span className="shrink-0 opacity-60" aria-hidden>
+                            →
+                          </span>
+                          <span className="shrink-0 font-mono" title={pr.baseRef}>
+                            {pr.baseRef}
+                          </span>
+                        </p>
+                        <p className="mt-1 text-xs text-muted">
                           last activity {pr.lastActivity.kind} by {pr.lastActivity.author ?? "unknown"}
                           {pr.lastActivity.isBot ? " (bot)" : ""} · <RelativeTime iso={pr.lastActivity.at} />
                         </p>

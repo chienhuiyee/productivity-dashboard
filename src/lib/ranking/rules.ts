@@ -27,6 +27,40 @@ export const RULES = {
     perDayFailingPoints: 10,
     maxFailingBonus: 40,
   },
+  notifications: {
+    /** Points per GitHub `reason`; higher = more "waiting on you". */
+    reasonPoints: {
+      review_requested: 50,
+      assign: 45,
+      mention: 40,
+      security_alert: 30,
+      team_mention: 30,
+      author: 25,
+      ci_activity: 22,
+      invitation: 20,
+      comment: 15,
+      state_change: 12,
+      manual: 8,
+      subscribed: 5,
+    } as Record<string, number>,
+    /** Fallback for any reason GitHub adds that we don't map yet. */
+    defaultReasonPoints: 10,
+    /** Unread threads are, by definition, the ones still waiting. */
+    unreadBonus: 8,
+    /** Checked in order; first matching bucket adds its points (older = more neglected). */
+    ageBuckets: [
+      { minDays: 3, points: 10 },
+      { minDays: 1, points: 5 },
+    ],
+    /** Reasons that count as actionable ("waiting on you"): the tile + focus line. */
+    tiers: {
+      act: ["review_requested", "assign", "mention", "team_mention"] as string[],
+      involved: ["author", "ci_activity", "security_alert"] as string[],
+    },
+    /** Fetch bound: at most maxPages * perPage notifications. */
+    perPage: 50,
+    maxPages: 3,
+  },
   focus: {
     /** Show at most this many summary lines. */
     maxLines: 6,
@@ -34,6 +68,7 @@ export const RULES = {
     severity: {
       actionsBroken: 100,
       prReview: 80,
+      notifWaiting: 78,
       prConflict: 70,
       prOld: 60,
       prStale: 40,

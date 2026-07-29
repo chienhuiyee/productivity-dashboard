@@ -1,7 +1,8 @@
 import "server-only";
 import { fetchGithubData } from "./fetchRepos";
+import { fetchNotifications, isActionable } from "./notifications";
 import type { GithubData } from "./types";
-import { buildFocus, scoreAction, scorePr } from "@/lib/ranking/score";
+import { buildFocus, scoreAction, scoreNotification, scorePr } from "@/lib/ranking/score";
 import { readConfig } from "@/lib/config/store";
 import { repoKey } from "@/lib/config/schema";
 import { getCached, setCached } from "@/lib/cache";
@@ -25,7 +26,12 @@ export async function getGithubData(token: string, opts: { force?: boolean } = {
   }
 
   const now = Date.now();
-  const { viewer, rateLimit, prs, actions, reposWithOpenPrs, errors } = await fetchGithubData(token, repos, now);
+  // Repos (GraphQL) and notifications (REST) use independent rate-limit budgets,
+  // so fetch them concurrently. A notifications failure never sinks the payload.
+  const [{ viewer, rateLimit, prs, actions, reposWithOpenPrs, errors }, notifResult] = await Promise.all([
+    fetchGithubData(token, repos, now),
+    fetchNotifications(token, now),
+  ]);
 
   for (const pr of prs) {
     const { score, reasons } = scorePr(pr, now);
@@ -39,6 +45,19 @@ export async function getGithubData(token: string, opts: { force?: boolean } = {
   }
   actions.sort((a, b) => b.score - a.score);
 
+  // Only keep notifications that are genuinely "waiting on you" (review requested,
+  // mention, assign, your own thread/CI, security). "fyi" reasons — state changes on
+  // already-merged/closed PRs, plain repo-watch comments — are noise for this view.
+  const notifications = notifResult.notifications.filter((n) => isActionable(n.reason));
+  for (const n of notifications) {
+    n.score = scoreNotification(n, now);
+  }
+  notifications.sort((a, b) => b.score - a.score || b.updatedAt.localeCompare(a.updatedAt));
+
+  const allErrors = notifResult.error
+    ? [...errors, { repo: "notifications", message: notifResult.error }]
+    : errors;
+
   const data: GithubData = {
     generatedAt: new Date(now).toISOString(),
     cached: false,
@@ -48,8 +67,10 @@ export async function getGithubData(token: string, opts: { force?: boolean } = {
     reposWithOpenPrs,
     prs,
     actions,
-    focus: buildFocus(prs, actions, { reposWithOpenPrs }, now),
-    errors,
+    notifications,
+    notificationsTruncated: notifResult.truncated,
+    focus: buildFocus(prs, actions, notifications, { reposWithOpenPrs }, now),
+    errors: allErrors,
   };
 
   setCached(cacheKey, data, CACHE_TTL_MS);
