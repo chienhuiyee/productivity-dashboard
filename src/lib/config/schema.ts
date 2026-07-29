@@ -11,14 +11,21 @@ export const repoRefSchema = z.object({
   name: z.string().min(1).max(100).regex(GH_NAME, "invalid repo name"),
 });
 
+export const standupSettingsSchema = z.object({
+  model: z.string().min(1).default("claude-sonnet-5"),
+  // ISO weekday numbers (0=Sun … 6=Sat) that count as working days.
+  workingDays: z.array(z.number().int().min(0).max(6)).default([1, 2, 3, 4, 5]),
+});
+
 export const settingsSchema = z.object({
   // How often the dashboard auto-refreshes, in ms. 30s min, 1h max.
   refreshIntervalMs: z.number().int().min(30_000).max(3_600_000).default(300_000),
+  standup: standupSettingsSchema.default({ model: "claude-sonnet-5", workingDays: [1, 2, 3, 4, 5] }),
 });
 
 export const configSchema = z.object({
   repos: z.array(repoRefSchema).max(200).default([]),
-  settings: settingsSchema.default({ refreshIntervalMs: 300_000 }),
+  settings: settingsSchema.default({ refreshIntervalMs: 300_000, standup: { model: "claude-sonnet-5", workingDays: [1, 2, 3, 4, 5] } }),
 });
 
 export type RepoRef = z.infer<typeof repoRefSchema>;
@@ -27,7 +34,7 @@ export type AppConfig = z.infer<typeof configSchema>;
 
 export const DEFAULT_CONFIG: AppConfig = {
   repos: [],
-  settings: { refreshIntervalMs: 300_000 },
+  settings: { refreshIntervalMs: 300_000, standup: { model: "claude-sonnet-5", workingDays: [1, 2, 3, 4, 5] } },
 };
 
 /** "owner/name" -> {owner, name}, or null if malformed. */
