@@ -132,9 +132,10 @@ export async function POST(request: Request) {
       const notes = typeof body.notes === "string" ? body.notes : (existingDay?.manualNotes ?? "");
       const prompt = buildGeneratePrompt(facts, done, openItems(state.items), notes);
       const text = await runClaude(prompt, model);
-      const day = existingDay ?? emptyDay(date, now);
-      Object.assign(day, { facts, generatedText: text, windowFrom: win.from, windowTo: win.to });
-      await writeDay(day);
+      // Re-read so a notes edit saved during the (possibly long) generate call isn't clobbered.
+      const latest = (await readDay(date)) ?? existingDay ?? emptyDay(date, now);
+      Object.assign(latest, { facts, generatedText: text, windowFrom: win.from, windowTo: win.to });
+      await writeDay(latest);
       return NextResponse.json({ text });
     }
 
