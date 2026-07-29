@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 import type { StandupOp } from "@/hooks/useStandup";
-import { dayCount } from "@/lib/standup/items";
+import { dayCount, openItems } from "@/lib/standup/items";
 import type { ItemType, TrackedItem } from "@/lib/standup/types";
 import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 
@@ -68,7 +68,7 @@ export function FollowUps({
   items: TrackedItem[];
   mutateOp: (body: StandupOp) => Promise<void>;
 }) {
-  const open = items.filter((i) => i.status === "open");
+  const open = openItems(items);
 
   return (
     <>

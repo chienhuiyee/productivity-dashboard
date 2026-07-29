@@ -2,7 +2,7 @@
 
 import { useState, type ClipboardEvent, type KeyboardEvent } from "react";
 import { Image as ImageIcon } from "lucide-react";
-import type { StandupAction, StandupOp } from "@/hooks/useStandup";
+import type { StandupAction, StandupActionResult, StandupOp } from "@/hooks/useStandup";
 import { parseItem } from "@/lib/standup/classify";
 import { Badge } from "@/components/ui/Badge";
 import { TYPE_VARIANT } from "./FollowUps";
@@ -35,10 +35,11 @@ export function AddItem({
   action,
 }: {
   mutateOp: (body: StandupOp) => Promise<void>;
-  action: (body: StandupAction) => Promise<{ text?: string; items?: string[]; aiError?: string }>;
+  action: (body: StandupAction) => Promise<StandupActionResult>;
 }) {
   const [text, setText] = useState("");
   const [deriving, setDeriving] = useState(false);
+  const [imageError, setImageError] = useState<string | null>(null);
 
   const trimmed = text.trim();
   const preview = previewFor(trimmed);
@@ -56,11 +57,16 @@ export function AddItem({
 
   async function deriveFromImage(file: Blob) {
     setDeriving(true);
+    setImageError(null);
     try {
       const dataUrl = await readAsDataUrl(file);
       const res = await action({ action: "deriveImage", dataUrl });
-      for (const item of res.items ?? []) {
-        await mutateOp({ op: "add", text: item });
+      if (res.aiError || res.error) {
+        setImageError(res.aiError ?? res.error ?? null);
+      } else if (Array.isArray(res.items)) {
+        for (const item of res.items) {
+          await mutateOp({ op: "add", text: item });
+        }
       }
     } finally {
       setDeriving(false);
@@ -113,6 +119,11 @@ export function AddItem({
           ? "Reading the screenshot and pulling out items…"
           : "Paste a screenshot (Slack, Jira, meeting notes) and it’ll pull out the items."}
       </p>
+      {imageError && (
+        <p className="border-t border-border bg-amber-50 px-5 py-2.5 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
+          Claude Code unavailable — run <code className="font-mono">claude setup-token</code>.
+        </p>
+      )}
     </>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Check, Copy, Sparkles } from "lucide-react";
-import type { StandupAction, StandupOp } from "@/hooks/useStandup";
+import type { StandupAction, StandupActionResult, StandupOp } from "@/hooks/useStandup";
 
 /** Generate button + editable Yesterday/Today prose + Copy, with an AI-unavailable fallback hint. */
 export function GenerateBlock({
@@ -11,7 +11,7 @@ export function GenerateBlock({
   mutateOp,
 }: {
   initialText: string;
-  action: (body: StandupAction) => Promise<{ text?: string; items?: string[]; aiError?: string }>;
+  action: (body: StandupAction) => Promise<StandupActionResult>;
   mutateOp: (body: StandupOp) => Promise<void>;
 }) {
   const [text, setText] = useState(initialText);
@@ -24,8 +24,8 @@ export function GenerateBlock({
     setAiError(null);
     try {
       const res = await action({ action: "generate" });
-      if (res.aiError) {
-        setAiError(res.aiError);
+      if (res.aiError || res.error) {
+        setAiError(res.aiError ?? res.error ?? null);
       } else if (res.text !== undefined) {
         setText(res.text);
       }

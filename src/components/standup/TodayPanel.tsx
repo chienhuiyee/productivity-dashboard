@@ -1,6 +1,6 @@
 "use client";
 
-import type { StandupAction, StandupGetData, StandupOp } from "@/hooks/useStandup";
+import type { StandupAction, StandupActionResult, StandupGetData, StandupOp } from "@/hooks/useStandup";
 import { AddItem } from "./AddItem";
 import { FactsPanel } from "./FactsPanel";
 import { FollowUps } from "./FollowUps";
@@ -10,15 +10,27 @@ import { GenerateBlock } from "./GenerateBlock";
 export function TodayPanel({
   data,
   isLoading,
+  error,
   mutateOp,
   action,
 }: {
   data: StandupGetData | undefined;
   isLoading: boolean;
+  error?: Error;
   mutateOp: (body: StandupOp) => Promise<void>;
-  action: (body: StandupAction) => Promise<{ text?: string; items?: string[]; aiError?: string }>;
+  action: (body: StandupAction) => Promise<StandupActionResult>;
 }) {
   if (isLoading && !data) return <TodaySkeleton />;
+
+  if (error && !data) {
+    return (
+      <div className="rounded-xl border border-red-300 bg-red-50 p-5 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300">
+        <p className="font-medium">Couldn’t load standup — your GitHub session may have expired.</p>
+        <p className="mt-1">Refresh the page.</p>
+      </div>
+    );
+  }
+
   if (!data) return null;
 
   return (

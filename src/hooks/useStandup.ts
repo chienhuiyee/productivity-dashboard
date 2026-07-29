@@ -37,9 +37,17 @@ export interface StandupActionResult {
   text?: string;
   items?: string[];
   aiError?: string;
+  error?: string;
 }
 
-const fetcher = (u: string): Promise<StandupGetData> => fetch(u).then((r) => r.json());
+const fetcher = async (u: string): Promise<StandupGetData> => {
+  const res = await fetch(u);
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Request failed (${res.status})`);
+  }
+  return res.json();
+};
 
 /** SWR-backed standup state plus PUT/POST helpers for the /standup page. */
 export function useStandup() {
@@ -63,7 +71,7 @@ export function useStandup() {
     return res.json();
   }
 
-  return { data: swr.data, isLoading: swr.isLoading, reload: swr.mutate, mutateOp, action };
+  return { data: swr.data, isLoading: swr.isLoading, error: swr.error, reload: swr.mutate, mutateOp, action };
 }
 
 export type UseStandupReturn = ReturnType<typeof useStandup>;
