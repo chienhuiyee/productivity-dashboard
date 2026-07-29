@@ -1,4 +1,5 @@
 import type { GithubData } from "@/lib/github/types";
+import { RULES } from "@/lib/ranking/rules";
 import type { TileKind } from "./focusFilter";
 
 const DAY = 86_400_000;
@@ -21,6 +22,11 @@ interface Tile {
   tone: Tone;
 }
 
+const ACTIONABLE_REASONS = new Set<string>([
+  ...RULES.notifications.tiers.act,
+  ...RULES.notifications.tiers.involved,
+]);
+
 // Kept out of the component body so the Date.now() read isn't an impure render.
 function computeTiles(data: GithubData): Tile[] {
   const now = Date.now();
@@ -31,11 +37,13 @@ function computeTiles(data: GithubData): Tile[] {
   const stale = active.filter(
     (p) => now - Date.parse(p.lastActivity.at ?? p.createdAt) >= 2 * DAY,
   ).length;
+  const waiting = data.notifications.filter((n) => ACTIONABLE_REASONS.has(n.reason)).length;
 
   return [
+    { kind: "waiting", label: "Waiting on you", value: waiting, tone: waiting ? "orange" : "neutral" },
     { kind: "failing", label: "Failing main", value: data.actions.length, tone: data.actions.length ? "red" : "neutral" },
-    { kind: "conflicts", label: "Conflicts", value: conflicts, tone: conflicts ? "rose" : "neutral" },
     { kind: "review", label: "Your review", value: needsReview, tone: needsReview ? "amber" : "neutral" },
+    { kind: "conflicts", label: "Conflicts", value: conflicts, tone: conflicts ? "rose" : "neutral" },
     { kind: "aging", label: "Aging 3d+", value: aging, tone: aging ? "orange" : "neutral" },
     { kind: "stale", label: "Stale 2d+", value: stale, tone: stale ? "amber" : "neutral" },
     { kind: "open", label: "Open PRs", value: data.prs.length, tone: "neutral" },
@@ -90,7 +98,7 @@ export function AnalysisPanel({
       <h2 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
         Focus — click to filter
       </h2>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {tiles.map((t) => (
           <StatTile key={t.kind} tile={t} active={t.kind === activeKind} onSelect={onSelectTile} />
         ))}

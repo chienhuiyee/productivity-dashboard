@@ -92,6 +92,8 @@ function parsePr(pr: RawPr, repo: string, viewerLogin: string | null, now: numbe
     url: pr.url,
     isDraft: pr.isDraft,
     mergeable,
+    headRef: pr.headRefName,
+    baseRef: pr.baseRefName,
     createdAt: pr.createdAt,
     updatedAt: pr.updatedAt,
     author: pr.author?.login ?? null,

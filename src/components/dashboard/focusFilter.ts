@@ -2,11 +2,15 @@ import type { PullRequestItem } from "@/lib/github/types";
 
 const DAY = 86_400_000;
 
+/** Which detail list is shown below the Focus tiles. */
+export type DetailTab = "prs" | "notifications" | "actions";
+
 /** PR sub-filters the Focus tiles can apply. */
 export type PrFocus = "all" | "conflicts" | "review" | "aging" | "stale";
 
-/** Every clickable Focus tile ("failing" and "open" drive tab/clear, not a PR filter). */
-export type TileKind = "failing" | "conflicts" | "review" | "aging" | "stale" | "open";
+/** Every clickable Focus tile. "failing"/"waiting" switch tabs and "open" clears the
+ *  PR filter — none of those three are PR sub-filters, so they're excluded from PrFocus. */
+export type TileKind = "failing" | "waiting" | "conflicts" | "review" | "aging" | "stale" | "open";
 
 export const FOCUS_LABEL: Record<Exclude<PrFocus, "all">, string> = {
   conflicts: "conflicts",

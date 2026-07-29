@@ -6,13 +6,13 @@ import { useGithubData } from "@/hooks/useGithubData";
 import type { RepoError } from "@/lib/github/types";
 import { RelativeTime } from "@/components/ui/RelativeTime";
 import { AnalysisPanel } from "./AnalysisPanel";
-import type { PrFocus, TileKind } from "./focusFilter";
+import type { DetailTab, PrFocus, TileKind } from "./focusFilter";
 import { RefreshButton } from "./RefreshButton";
 import { TabbedDetail } from "./TabbedDetail";
 
 export function DashboardClient({ refreshIntervalMs }: { refreshIntervalMs: number }) {
   const { data, error, isLoading, isRefreshing, refresh } = useGithubData(refreshIntervalMs);
-  const [tab, setTab] = useState<"prs" | "actions">("prs");
+  const [tab, setTab] = useState<DetailTab>("prs");
   const [prFocus, setPrFocus] = useState<PrFocus>("all");
 
   function selectTile(kind: TileKind) {
@@ -20,11 +20,22 @@ export function DashboardClient({ refreshIntervalMs }: { refreshIntervalMs: numb
       setTab("actions");
       return;
     }
+    if (kind === "waiting") {
+      setTab("notifications");
+      return;
+    }
     setTab("prs");
     setPrFocus(kind === "open" ? "all" : kind);
   }
 
-  const activeKind: TileKind = tab === "actions" ? "failing" : prFocus === "all" ? "open" : prFocus;
+  const activeKind: TileKind =
+    tab === "actions"
+      ? "failing"
+      : tab === "notifications"
+        ? "waiting"
+        : prFocus === "all"
+          ? "open"
+          : prFocus;
 
   if (isLoading && !data) return <DashboardSkeleton />;
 

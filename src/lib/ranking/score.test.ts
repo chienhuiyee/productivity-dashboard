@@ -1,11 +1,30 @@
 import { describe, expect, it } from "vitest";
-import { buildFocus, scoreAction, scorePr } from "./score";
+import { buildFocus, scoreAction, scoreNotification, scorePr } from "./score";
 import { RULES } from "./rules";
-import type { ActionFailure, PullRequestItem } from "@/lib/github/types";
+import type { ActionFailure, NotificationItem, PullRequestItem } from "@/lib/github/types";
 
 const NOW = Date.parse("2026-01-15T00:00:00.000Z");
 const DAY = 24 * 60 * 60 * 1000;
 const iso = (msAgo: number) => new Date(NOW - msAgo).toISOString();
+
+function makeNotif(overrides: Partial<NotificationItem> = {}): NotificationItem {
+  return {
+    id: "1",
+    repo: "o/r",
+    repoUrl: "https://github.com/o/r",
+    reason: "subscribed",
+    reasonLabel: "subscribed",
+    tier: "fyi",
+    subjectType: "PullRequest",
+    title: "A thread",
+    url: "https://github.com/o/r/pull/1",
+    unread: true,
+    updatedAt: iso(0),
+    ageMs: 0,
+    score: 0,
+    ...overrides,
+  };
+}
 
 function makePr(overrides: Partial<PullRequestItem> = {}): PullRequestItem {
   return {
@@ -15,6 +34,8 @@ function makePr(overrides: Partial<PullRequestItem> = {}): PullRequestItem {
     url: "https://github.com/o/r/pull/1",
     isDraft: false,
     mergeable: "MERGEABLE",
+    headRef: "feat/x",
+    baseRef: "main",
     createdAt: iso(0),
     updatedAt: iso(0),
     author: "someone",
@@ -77,6 +98,36 @@ describe("scoreAction", () => {
   });
 });
 
+describe("scoreNotification", () => {
+  it("weights an unread review request above a subscribed comment", () => {
+    const review = scoreNotification(makeNotif({ reason: "review_requested" }), NOW);
+    const sub = scoreNotification(makeNotif({ reason: "comment" }), NOW);
+    // review_requested 50 + unread 8 vs comment 15 + unread 8
+    expect(review).toBe(50 + 8);
+    expect(sub).toBe(15 + 8);
+    expect(review).toBeGreaterThan(sub);
+  });
+
+  it("drops the unread bonus for read threads", () => {
+    expect(scoreNotification(makeNotif({ reason: "mention", unread: false }), NOW)).toBe(40);
+  });
+
+  it("adds an aging bonus for neglected threads", () => {
+    expect(scoreNotification(makeNotif({ reason: "author", unread: false, updatedAt: iso(4 * DAY) }), NOW)).toBe(
+      25 + 10,
+    );
+    expect(scoreNotification(makeNotif({ reason: "author", unread: false, updatedAt: iso(2 * DAY) }), NOW)).toBe(
+      25 + 5,
+    );
+  });
+
+  it("falls back to the default weight for an unknown reason", () => {
+    expect(scoreNotification(makeNotif({ reason: "some_new_reason", unread: false }), NOW)).toBe(
+      RULES.notifications.defaultReasonPoints,
+    );
+  });
+});
+
 describe("buildFocus", () => {
   const actions: ActionFailure[] = [
     { repo: "o/a", repoUrl: "", defaultBranch: "main", workflowName: "CI", runUrl: null, failingSince: iso(DAY), failingForMs: DAY, score: 60 },
@@ -89,7 +140,7 @@ describe("buildFocus", () => {
     makePr({ url: "p4", isDraft: true, createdAt: iso(10 * DAY), lastActivity: { author: "x", at: iso(10 * DAY), isBot: false, kind: "opened" } }),
   ];
 
-  const focus = buildFocus(prs, actions, { reposWithOpenPrs: 3 }, NOW);
+  const focus = buildFocus(prs, actions, [], { reposWithOpenPrs: 3 }, NOW);
 
   it("puts broken main branches first", () => {
     expect(focus[0].kind).toBe("actions-broken");
@@ -114,9 +165,36 @@ describe("buildFocus", () => {
     const withConflict = buildFocus(
       [makePr({ url: "c1", mergeable: "CONFLICTING", createdAt: iso(1 * DAY) })],
       [],
+      [],
       { reposWithOpenPrs: 1 },
       NOW,
     );
     expect(withConflict.find((f) => f.kind === "pr-conflict")?.label).toBe("1 PR with merge conflicts");
+  });
+
+  it("counts only actionable notifications in the 'waiting on you' line", () => {
+    const withNotifs = buildFocus(
+      [],
+      [],
+      [
+        makeNotif({ id: "1", reason: "review_requested" }), // act -> counts
+        makeNotif({ id: "2", reason: "author" }), // involved -> counts
+        makeNotif({ id: "3", reason: "subscribed" }), // fyi -> ignored
+      ],
+      { reposWithOpenPrs: 0 },
+      NOW,
+    );
+    expect(withNotifs.find((f) => f.kind === "notif-waiting")?.label).toBe("2 notifications waiting on you");
+  });
+
+  it("omits the notifications line when nothing is actionable", () => {
+    const noneActionable = buildFocus(
+      [],
+      [],
+      [makeNotif({ reason: "subscribed" }), makeNotif({ reason: "comment" })],
+      { reposWithOpenPrs: 0 },
+      NOW,
+    );
+    expect(noneActionable.find((f) => f.kind === "notif-waiting")).toBeUndefined();
   });
 });

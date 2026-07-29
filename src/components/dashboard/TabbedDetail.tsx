@@ -1,13 +1,12 @@
 import type { GithubData } from "@/lib/github/types";
 import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import { ActionsWidget } from "./ActionsWidget";
-import type { PrFocus } from "./focusFilter";
+import type { DetailTab, PrFocus } from "./focusFilter";
+import { NotificationsWidget } from "./NotificationsWidget";
 import { PullRequestsWidget } from "./PullRequestsWidget";
 
-type Tab = "prs" | "actions";
-
-/** The detail lists as tabs (PRs first, then failing branches). Controlled by the parent
- *  so the Focus tiles can drive which tab and PR filter are active. */
+/** The detail lists as tabs (PRs, then the "waiting on you" inbox, then failing branches).
+ *  Controlled by the parent so the Focus tiles can drive which tab and PR filter are active. */
 export function TabbedDetail({
   data,
   tab,
@@ -16,8 +15,8 @@ export function TabbedDetail({
   onClearFocus,
 }: {
   data: GithubData;
-  tab: Tab;
-  onTabChange: (t: Tab) => void;
+  tab: DetailTab;
+  onTabChange: (t: DetailTab) => void;
   prFocus: PrFocus;
   onClearFocus: () => void;
 }) {
@@ -32,6 +31,13 @@ export function TabbedDetail({
           variant="amber"
         />
         <TabButton
+          active={tab === "notifications"}
+          onClick={() => onTabChange("notifications")}
+          label="Waiting on you"
+          count={data.notifications.length}
+          variant="orange"
+        />
+        <TabButton
           active={tab === "actions"}
           onClick={() => onTabChange("actions")}
           label="Failing main branches"
@@ -41,11 +47,16 @@ export function TabbedDetail({
       </div>
 
       <div className="p-5">
-        {tab === "prs" ? (
+        {tab === "prs" && (
           <PullRequestsWidget prs={data.prs} focus={prFocus} onClearFocus={onClearFocus} />
-        ) : (
-          <ActionsWidget actions={data.actions} />
         )}
+        {tab === "notifications" && (
+          <NotificationsWidget
+            notifications={data.notifications}
+            truncated={data.notificationsTruncated}
+          />
+        )}
+        {tab === "actions" && <ActionsWidget actions={data.actions} />}
       </div>
     </section>
   );

@@ -1,5 +1,6 @@
 import { DAY_MS, RULES } from "./rules";
-import type { ActionFailure, PullRequestItem } from "@/lib/github/types";
+import type { ActionFailure, NotificationItem, PullRequestItem } from "@/lib/github/types";
+import { isActionable } from "@/lib/github/notifications";
 import type { FocusItem } from "@/lib/modules/types";
 
 function ms(iso: string | null | undefined, fallback: number): number {
@@ -65,13 +66,34 @@ export function scoreAction(
   );
 }
 
+/** Score a GitHub notification. Pure: `now` is injected so it's testable. */
+export function scoreNotification(
+  n: Pick<NotificationItem, "reason" | "unread" | "updatedAt">,
+  now: number,
+): number {
+  const points = RULES.notifications.reasonPoints[n.reason] ?? RULES.notifications.defaultReasonPoints;
+  let score = points;
+  if (n.unread) score += RULES.notifications.unreadBonus;
+
+  const ageDays = (now - ms(n.updatedAt, now)) / DAY_MS;
+  for (const bucket of RULES.notifications.ageBuckets) {
+    if (ageDays >= bucket.minDays) {
+      score += bucket.points;
+      break;
+    }
+  }
+
+  return score;
+}
+
 /**
- * Build the ranked focus summary from already-scored PRs and Action failures.
- * Returns at most RULES.focus.maxLines items, most urgent first.
+ * Build the ranked focus summary from already-scored PRs, Action failures, and
+ * notifications. Returns at most RULES.focus.maxLines items, most urgent first.
  */
 export function buildFocus(
   prs: PullRequestItem[],
   actions: ActionFailure[],
+  notifications: NotificationItem[],
   meta: { reposWithOpenPrs: number },
   now: number,
 ): FocusItem[] {
@@ -84,6 +106,16 @@ export function buildFocus(
       kind: "actions-broken",
       label: `${actions.length} repo${plural(actions.length)} with failing main`,
       severity: sev.actionsBroken + actions.length,
+    });
+  }
+
+  const waiting = notifications.filter((n) => isActionable(n.reason));
+  if (waiting.length > 0) {
+    items.push({
+      moduleId: "github",
+      kind: "notif-waiting",
+      label: `${waiting.length} notification${plural(waiting.length)} waiting on you`,
+      severity: sev.notifWaiting + waiting.length,
     });
   }
 

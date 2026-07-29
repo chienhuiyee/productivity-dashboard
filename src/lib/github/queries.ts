@@ -49,6 +49,8 @@ export const REPO_DATA_FRAGMENT = /* GraphQL */ `
         url
         isDraft
         mergeable
+        headRefName
+        baseRefName
         createdAt
         updatedAt
         author {
@@ -190,6 +192,8 @@ export interface RawPr {
   url: string;
   isDraft: boolean;
   mergeable: string | null;
+  headRefName: string;
+  baseRefName: string;
   createdAt: string;
   updatedAt: string;
   author: { login: string } | null;
