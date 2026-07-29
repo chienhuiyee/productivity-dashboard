@@ -13,6 +13,7 @@ Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · NextAuth v5 
 - `src/auth.ts` — NextAuth config (classic GitHub OAuth App; token captured in JWT → session).
 - `src/lib/config/` — `schema.ts` (zod) + `store.ts` (atomic fs, `server-only`); persisted to `data/config.json` (gitignored).
 - `src/lib/github/` — `queries.ts` (aliased batch GraphQL + raw types), `fetchRepos.ts` (chunk + `Promise.allSettled` + defensive parse; `parseRepo`/`runChunk` are pure & unit-tested), `notifications.ts` (REST "waiting on you" inbox; pure `parseNotification`/`notificationHtmlUrl`, non-throwing `fetchNotifications`), `provider.ts` (fetch repos + notifications in parallel → rank → cache), `client.ts`, `types.ts`.
+- `src/lib/standup/` — window, classify, items, collect, prompt, generate, store; `/standup` page + `/api/standup` route (daily standup facts, tracked items, AI prose generation).
 - `src/lib/ranking/` — `rules.ts` (all thresholds) + `score.ts` (pure `scorePr`/`scoreAction`/`scoreNotification`/`buildFocus`).
 - `src/lib/modules/` — `SourceProvider` interface + `registry.ts` (the extension seam for future modules).
 - `src/app/api/{github,config}/route.ts` — server aggregator + config CRUD; both gated by `auth()`.

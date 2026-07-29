@@ -21,6 +21,12 @@ export default async function Home() {
         <div className="flex items-center gap-3">
           <ThemeToggle />
           <Link
+            href="/standup"
+            className="rounded-full border border-border px-3.5 py-1.5 text-sm font-medium transition-colors hover:bg-surface-muted"
+          >
+            Standup
+          </Link>
+          <Link
             href="/config"
             className="rounded-full border border-border px-3.5 py-1.5 text-sm font-medium transition-colors hover:bg-surface-muted"
           >
