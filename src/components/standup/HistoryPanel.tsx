@@ -43,6 +43,8 @@ export function HistoryPanel({
       } else if (res.text !== undefined) {
         setRollText(res.text);
       }
+    } catch {
+      setRollHint("Couldn't generate the roll-up — try again.");
     } finally {
       setRollLoading(false);
     }

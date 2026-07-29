@@ -34,7 +34,12 @@ export async function GET(request: Request) {
 
   const url = new URL(request.url);
   const date = url.searchParams.get("date");
-  if (date) return NextResponse.json({ day: await readDay(date) });
+  if (date) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return NextResponse.json({ error: "invalid date" }, { status: 400 });
+    }
+    return NextResponse.json({ day: await readDay(date) });
+  }
 
   const now = Date.now();
   const cfg = await readConfig();
