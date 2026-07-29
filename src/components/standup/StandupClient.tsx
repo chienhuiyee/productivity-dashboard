@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { useStandup } from "@/hooks/useStandup";
+import { HistoryPanel } from "./HistoryPanel";
 import { TodayPanel } from "./TodayPanel";
 
 type SubView = "today" | "history";
@@ -53,12 +54,7 @@ export function StandupClient() {
       {sub === "today" ? (
         <TodayPanel data={data} isLoading={isLoading} error={error} mutateOp={mutateOp} action={action} />
       ) : (
-        <div className="rounded-xl border border-border bg-surface px-6 py-16 text-center shadow-sm">
-          <h2 className="font-serif text-xl font-semibold">History is coming soon</h2>
-          <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-            Past standups and week/month roll-ups will show up here.
-          </p>
-        </div>
+        <HistoryPanel data={data} action={action} />
       )}
     </div>
   );

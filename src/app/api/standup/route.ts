@@ -28,9 +28,13 @@ async function requireToken() {
   return session?.accessToken ?? null;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const token = await requireToken();
   if (!token) return NextResponse.json({ error: "Not signed in to GitHub" }, { status: 401 });
+
+  const url = new URL(request.url);
+  const date = url.searchParams.get("date");
+  if (date) return NextResponse.json({ day: await readDay(date) });
 
   const now = Date.now();
   const cfg = await readConfig();
