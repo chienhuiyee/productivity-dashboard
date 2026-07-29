@@ -17,12 +17,13 @@ export function buildClaudeArgs(model: string, imagePath?: string): string[] {
  */
 export function runClaude(prompt: string, model: string, imagePath?: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    const child = spawn("claude", buildClaudeArgs(model, imagePath), {
-      env: { ...process.env }, // CLAUDE_CODE_OAUTH_TOKEN from .env; ANTHROPIC_API_KEY must be unset
-    });
+    const env = { ...process.env };
+    delete env.ANTHROPIC_API_KEY; // force subscription auth via CLAUDE_CODE_OAUTH_TOKEN
+    const child = spawn("claude", buildClaudeArgs(model, imagePath), { env });
     let out = "";
     let err = "";
     child.on("error", (e) => reject(new ClaudeUnavailableError(`Claude Code not runnable: ${e.message}`)));
+    child.stdin.on("error", () => {}); // ignore EPIPE if claude exits before reading stdin (close/error handlers surface it)
     child.stdout.on("data", (d) => (out += d));
     child.stderr.on("data", (d) => (err += d));
     child.on("close", (code) => {
