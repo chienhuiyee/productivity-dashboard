@@ -20,6 +20,8 @@ export function buildGeneratePrompt(
     refLines("Merged PRs", facts.mergedPrs),
     refLines("Opened PRs", facts.openedPrs),
     refLines("Reviewed PRs", facts.reviewedPrs),
+    refLines("Opened issues", facts.openedIssues),
+    refLines("Closed issues", facts.closedIssues),
     facts.commitsByRepo.length ? `Commits: ${facts.commitsByRepo.map((c) => `${c.count} in ${c.repo}`).join(", ")}\n` : "",
     doneItems.length ? "Also did:\n" + doneItems.map((i) => `  - ${i.text}`).join("\n") + "\n" : "",
     notes.trim() ? `Notes: ${notes.trim()}\n` : "",

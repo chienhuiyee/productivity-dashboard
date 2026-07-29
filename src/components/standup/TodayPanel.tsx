@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { StandupAction, StandupActionResult, StandupGetData, StandupOp } from "@/hooks/useStandup";
 import { AddItem } from "./AddItem";
 import { FactsPanel } from "./FactsPanel";
@@ -42,6 +43,8 @@ export function TodayPanel({
         <AddItem mutateOp={mutateOp} action={action} />
       </section>
 
+      <NotesField initialNotes={data.today?.manualNotes ?? ""} mutateOp={mutateOp} />
+
       <GenerateBlock initialText={data.today?.generatedText ?? ""} action={action} mutateOp={mutateOp} />
 
       <FactsPanel facts={data.facts} />
@@ -51,6 +54,38 @@ export function TodayPanel({
         <br />
         If Claude Code isn’t reachable, you still get the bullets above — just unpolished.
       </p>
+    </div>
+  );
+}
+
+/** Compact free-text notes for things GitHub can't see (meetings, pairing, docs); saved on blur. */
+function NotesField({
+  initialNotes,
+  mutateOp,
+}: {
+  initialNotes: string;
+  mutateOp: (body: StandupOp) => Promise<void>;
+}) {
+  const [notes, setNotes] = useState(initialNotes);
+
+  async function saveOnBlur() {
+    await mutateOp({ op: "notes", notes });
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label htmlFor="standup-notes" className="text-xs font-medium text-muted">
+        Notes — anything not in GitHub (meetings, pairing, docs)
+      </label>
+      <textarea
+        id="standup-notes"
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+        onBlur={() => void saveOnBlur()}
+        placeholder="e.g. paired with hck on the migration, wrote the onboarding doc"
+        rows={2}
+        className="rounded-lg border border-border bg-background px-3 py-1.5 text-sm outline-none focus:border-accent"
+      />
     </div>
   );
 }

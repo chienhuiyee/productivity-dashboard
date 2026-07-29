@@ -124,11 +124,15 @@ export async function POST(request: Request) {
         getGithubData(token).catch(() => null),
       ]);
       const facts = assembleFacts(contrib, github, state.items, now, contrib.viewer);
-      const done = state.items.filter((i) => i.status === "done");
-      const prompt = buildGeneratePrompt(facts, done, openItems(state.items), body.notes ?? "");
-      const text = await runClaude(prompt, model);
+      const done = state.items.filter(
+        (i) => i.status === "done" && Date.parse(i.updatedAt) >= Date.parse(win.from),
+      );
       const date = todayDate(now);
-      const day = (await readDay(date)) ?? emptyDay(date, now);
+      const existingDay = await readDay(date);
+      const notes = typeof body.notes === "string" ? body.notes : (existingDay?.manualNotes ?? "");
+      const prompt = buildGeneratePrompt(facts, done, openItems(state.items), notes);
+      const text = await runClaude(prompt, model);
+      const day = existingDay ?? emptyDay(date, now);
       Object.assign(day, { facts, generatedText: text, windowFrom: win.from, windowTo: win.to });
       await writeDay(day);
       return NextResponse.json({ text });

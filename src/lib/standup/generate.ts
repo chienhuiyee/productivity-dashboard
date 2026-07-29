@@ -22,18 +22,33 @@ export function runClaude(prompt: string, model: string, imagePath?: string): Pr
     const child = spawn("claude", buildClaudeArgs(model, imagePath), { env });
     let out = "";
     let err = "";
-    child.on("error", (e) => reject(new ClaudeUnavailableError(`Claude Code not runnable: ${e.message}`)));
+    let settled = false;
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      fn();
+    };
+    const timer = setTimeout(() => {
+      finish(() => {
+        child.kill("SIGKILL");
+        reject(new ClaudeUnavailableError("claude timed out"));
+      });
+    }, 120_000);
+    child.on("error", (e) => finish(() => reject(new ClaudeUnavailableError(`Claude Code not runnable: ${e.message}`))));
     child.stdin.on("error", () => {}); // ignore EPIPE if claude exits before reading stdin (close/error handlers surface it)
     child.stdout.on("data", (d) => (out += d));
     child.stderr.on("data", (d) => (err += d));
-    child.on("close", (code) => {
-      if (code !== 0) return reject(new ClaudeUnavailableError(err.slice(0, 300) || `claude exited ${code}`));
-      try {
-        resolve(JSON.parse(out).result ?? "");
-      } catch {
-        reject(new ClaudeUnavailableError("could not parse claude output"));
-      }
-    });
+    child.on("close", (code) =>
+      finish(() => {
+        if (code !== 0) return reject(new ClaudeUnavailableError(err.slice(0, 300) || `claude exited ${code}`));
+        try {
+          resolve(JSON.parse(out).result ?? "");
+        } catch {
+          reject(new ClaudeUnavailableError("could not parse claude output"));
+        }
+      }),
+    );
     child.stdin.write(prompt);
     child.stdin.end();
   });
