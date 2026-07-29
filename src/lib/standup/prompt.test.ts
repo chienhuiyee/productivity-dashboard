@@ -29,4 +29,10 @@ describe("parseImageItems", () => {
   it("returns [] on garbage", () => {
     expect(parseImageItems("no json here")).toEqual([]);
   });
+  it("ignores stray braces outside the JSON object", () => {
+    expect(parseImageItems('{profile} board — {"items":["Fix bug"]} trailing {x}')).toEqual(["Fix bug"]);
+  });
+  it("extracts from a prose-wrapped reply", () => {
+    expect(parseImageItems('Here are the items: {"items":["a","b"]}. Hope that helps!')).toEqual(["a", "b"]);
+  });
 });

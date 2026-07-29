@@ -49,13 +49,37 @@ export function buildRollupPrompt(days: { date: string; facts: StandupFacts }[],
 export const IMAGE_EXTRACT_PROMPT =
   'Look at this screenshot (a Slack thread, Jira board, or meeting notes). Extract the concrete action items, tasks, and meetings for the viewer. Reply with ONLY JSON: {"items": ["short item 1", "short item 2"]}. No prose.';
 
-export function parseImageItems(raw: string): string[] {
-  const match = raw.match(/\{[\s\S]*\}/);
-  if (!match) return [];
-  try {
-    const obj = JSON.parse(match[0]);
-    return Array.isArray(obj.items) ? obj.items.filter((x: unknown) => typeof x === "string") : [];
-  } catch {
-    return [];
+/** Extract balanced top-level {...} objects from text, string-aware. */
+function balancedObjects(s: string): string[] {
+  const out: string[] = [];
+  let depth = 0, start = -1, inStr = false, esc = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === "\\") esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') inStr = true;
+    else if (ch === "{") { if (depth === 0) start = i; depth++; }
+    else if (ch === "}") { if (depth > 0 && --depth === 0 && start >= 0) { out.push(s.slice(start, i + 1)); start = -1; } }
   }
+  return out;
+}
+
+export function parseImageItems(raw: string): string[] {
+  const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const candidates = [...(fenced ? [fenced[1]] : []), ...balancedObjects(raw)];
+  for (const c of candidates) {
+    try {
+      const obj = JSON.parse(c.trim());
+      if (obj && Array.isArray(obj.items)) {
+        return obj.items.filter((x: unknown) => typeof x === "string");
+      }
+    } catch {
+      // try the next candidate
+    }
+  }
+  return [];
 }
