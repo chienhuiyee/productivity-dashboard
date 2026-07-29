@@ -11,11 +11,13 @@ export function computeWindow(now: number, workingDays: number[] = [1, 2, 3, 4, 
   to: string;
   label: string;
 } {
+  // Guard against empty workingDays to prevent infinite loop.
+  const days = workingDays.length > 0 ? workingDays : [1, 2, 3, 4, 5];
   const cur = new Date(now);
   cur.setHours(0, 0, 0, 0);
   do {
     cur.setDate(cur.getDate() - 1);
-  } while (!workingDays.includes(cur.getDay()));
+  } while (!days.includes(cur.getDay()));
 
   return {
     from: cur.toISOString(),

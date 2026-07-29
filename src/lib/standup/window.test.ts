@@ -17,4 +17,14 @@ describe("computeWindow", () => {
     const from = new Date(computeWindow(wed).from);
     expect(from.getDate()).toBe(28); // Tue Jul 28
   });
+
+  it("falls back to default working week if workingDays is empty", () => {
+    const now = new Date(2026, 6, 27, 9, 0, 0).getTime(); // Mon Jul 27 2026
+    const w = computeWindow(now, []);
+    const from = new Date(w.from);
+    // Should fall back to [1, 2, 3, 4, 5] and find Friday
+    expect(from.getDay()).toBe(5); // Friday
+    expect(from.getDate()).toBe(24); // Jul 24
+    expect([1, 2, 3, 4, 5]).toContain(from.getDay());
+  });
 });

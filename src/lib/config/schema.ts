@@ -14,7 +14,7 @@ export const repoRefSchema = z.object({
 export const standupSettingsSchema = z.object({
   model: z.string().min(1).default("claude-sonnet-5"),
   // ISO weekday numbers (0=Sun … 6=Sat) that count as working days.
-  workingDays: z.array(z.number().int().min(0).max(6)).default([1, 2, 3, 4, 5]),
+  workingDays: z.array(z.number().int().min(0).max(6)).min(1).default([1, 2, 3, 4, 5]),
 });
 
 export const settingsSchema = z.object({
