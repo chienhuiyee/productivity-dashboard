@@ -16,8 +16,9 @@ async function atomicWrite(file: string, data: unknown): Promise<void> {
 export async function readState(baseDir: string = DEFAULT_DIR): Promise<StandupState> {
   try {
     return JSON.parse(await readFile(join(baseDir, "standup-state.json"), "utf8")) as StandupState;
-  } catch {
-    return { items: [] };
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return { items: [] };
+    throw err;
   }
 }
 
@@ -32,8 +33,9 @@ export async function writeDay(day: StandupDay, baseDir: string = DEFAULT_DIR): 
 export async function readDay(date: string, baseDir: string = DEFAULT_DIR): Promise<StandupDay | null> {
   try {
     return JSON.parse(await readFile(join(daysDir(baseDir), `${date}.json`), "utf8")) as StandupDay;
-  } catch {
-    return null;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw err;
   }
 }
 
@@ -43,7 +45,8 @@ export async function listDays(baseDir: string = DEFAULT_DIR): Promise<string[]>
       .filter((f) => f.endsWith(".json"))
       .map((f) => f.replace(/\.json$/, ""))
       .sort((a, b) => b.localeCompare(a));
-  } catch {
-    return [];
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
+    throw err;
   }
 }

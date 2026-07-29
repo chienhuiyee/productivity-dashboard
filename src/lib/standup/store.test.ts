@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { mkdtempSync, rmSync } from "node:fs";
+import { writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { listDays, readDay, readState, writeDay, writeState } from "./store";
@@ -24,5 +25,11 @@ describe("store", () => {
     expect(await listDays(d)).toEqual(["2026-07-25", "2026-07-24"]);
     expect((await readDay("2026-07-24", d))?.date).toBe("2026-07-24");
     expect(await readDay("2026-01-01", d)).toBeNull();
+  });
+
+  it("rethrows on a corrupted state file instead of silently returning empty", async () => {
+    const d = tmp();
+    await writeFile(join(d, "standup-state.json"), "{ not valid json", "utf8");
+    await expect(readState(d)).rejects.toThrow();
   });
 });
