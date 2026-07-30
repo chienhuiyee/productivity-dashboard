@@ -5,6 +5,23 @@ function refLines(label: string, refs: { repo: string; number: number; title: st
   return `${label}:\n` + refs.map((r) => `  - ${r.title} (${r.repo} #${r.number})`).join("\n") + "\n";
 }
 
+/**
+ * Human-readable LOCAL time for the model. `scheduledFor` is stored as a UTC ISO
+ * string; passing it raw made the model echo the UTC hour (e.g. 2:30 PM MYT shown
+ * as 6:30 AM). Format in the runtime's local zone instead.
+ */
+function localWhen(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 export function buildGeneratePrompt(
   facts: StandupFacts,
   doneItems: TrackedItem[],
@@ -14,7 +31,7 @@ export function buildGeneratePrompt(
   const parts = [
     "You are writing a developer's daily standup. Use ONLY the facts below — do not invent work.",
     "Write two short sections, 'Yesterday' and 'Today', as tight bullet points suitable to read aloud.",
-    "Group related items; be concise; no preamble.",
+    "Group related items; be concise; no preamble. Keep any dates and times exactly as written.",
     "",
     "FACTS — yesterday:",
     refLines("Merged PRs", facts.mergedPrs),
@@ -31,7 +48,7 @@ export function buildGeneratePrompt(
     facts.waitingOnYou ? `- ${facts.waitingOnYou} notification(s) waiting on me\n` : "",
     facts.failingMain.length ? `- failing main: ${facts.failingMain.join(", ")}\n` : "",
     facts.inProgress.length ? "In progress:\n" + facts.inProgress.map((p) => `  - ${p.title} (${p.repo} #${p.number}, day ${p.dayCount})`).join("\n") + "\n" : "",
-    openItems.length ? "Planned:\n" + openItems.map((i) => `  - ${i.text}${i.scheduledFor ? ` @ ${i.scheduledFor}` : ""}`).join("\n") + "\n" : "",
+    openItems.length ? "Planned:\n" + openItems.map((i) => `  - ${i.text}${i.scheduledFor ? ` (scheduled for ${localWhen(i.scheduledFor)})` : ""}`).join("\n") + "\n" : "",
   ];
   return parts.filter(Boolean).join("\n");
 }

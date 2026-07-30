@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildGeneratePrompt, parseImageItems } from "./prompt";
-import type { StandupFacts } from "./types";
+import type { StandupFacts, TrackedItem } from "./types";
 
 const facts: StandupFacts = {
   mergedPrs: [{ repo: "o/web", number: 158, title: "RBAC", url: "u" }],
@@ -16,6 +16,23 @@ describe("buildGeneratePrompt", () => {
     expect(p).toContain("o/job");
     expect(p).toContain("met with hck");
     expect(p.toLowerCase()).toContain("only");
+  });
+
+  it("passes a scheduled item's time as local text, not a raw UTC ISO", () => {
+    const item: TrackedItem = {
+      id: "1",
+      text: "sync with hck",
+      type: "meeting",
+      status: "open",
+      createdAt: "2026-07-30T00:00:00.000Z",
+      updatedAt: "2026-07-30T00:00:00.000Z",
+      scheduledFor: "2026-07-30T06:30:00.000Z",
+      parentId: null,
+    };
+    const p = buildGeneratePrompt(facts, [], [item], "");
+    expect(p).toContain("sync with hck");
+    expect(p).toContain("scheduled for");
+    expect(p).not.toContain("2026-07-30T06:30:00.000Z"); // never the raw UTC ISO
   });
 });
 
