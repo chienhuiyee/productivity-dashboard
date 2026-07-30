@@ -40,6 +40,13 @@ export function FactsPanel({ facts }: { facts: StandupFacts | null }) {
       facts.openedIssues.length > 0 ||
       facts.closedIssues.length > 0);
 
+  const hasToday =
+    !!facts &&
+    (facts.inProgress.length > 0 ||
+      facts.needsReview > 0 ||
+      facts.waitingOnYou > 0 ||
+      facts.failingMain.length > 0);
+
   return (
     <div className="grid gap-5 md:grid-cols-2">
       <section className="rounded-xl border border-border bg-surface shadow-sm">
@@ -97,6 +104,8 @@ export function FactsPanel({ facts }: { facts: StandupFacts | null }) {
         </header>
         {!facts ? (
           <Unavailable />
+        ) : !hasToday ? (
+          <p className="px-5 py-6 text-center text-sm text-muted">Nothing queued — you’re clear.</p>
         ) : (
           <div>
             {facts.inProgress.length > 0 && (
@@ -113,16 +122,20 @@ export function FactsPanel({ facts }: { facts: StandupFacts | null }) {
                 ))}
               </FactRow>
             )}
-            <FactRow label="Review">
-              <span>
-                {facts.needsReview} PR{facts.needsReview === 1 ? "" : "s"} waiting on your review
-              </span>
-            </FactRow>
-            <FactRow label="Waiting">
-              <span>
-                {facts.waitingOnYou} notification{facts.waitingOnYou === 1 ? "" : "s"} need a reply
-              </span>
-            </FactRow>
+            {facts.needsReview > 0 && (
+              <FactRow label="Review">
+                <span>
+                  {facts.needsReview} PR{facts.needsReview === 1 ? "" : "s"} waiting on your review
+                </span>
+              </FactRow>
+            )}
+            {facts.waitingOnYou > 0 && (
+              <FactRow label="Waiting">
+                <span>
+                  {facts.waitingOnYou} notification{facts.waitingOnYou === 1 ? "" : "s"} need a reply
+                </span>
+              </FactRow>
+            )}
             {facts.failingMain.length > 0 && (
               <FactRow label="Failing">
                 {facts.failingMain.map((repo) => (
