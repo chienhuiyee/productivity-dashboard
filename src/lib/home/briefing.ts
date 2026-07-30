@@ -42,12 +42,13 @@ export function buildBriefing(needs: NeedItem[], failingCount: number, now: numb
   }
 
   const count = countPhrase(needs.length);
+  const verb = needs.length === 1 ? "needs" : "need";
   const mainClause =
     failingCount === 0
       ? "Every main branch is green"
       : `${failingCount} main branch${failingCount === 1 ? " is" : "es are"} failing`;
   const top = needs[0];
-  const lead = `${count} need you this ${tod}. ${mainClause} — start with ${top.title}.`;
+  const lead = `${count} ${verb} you this ${tod}. ${mainClause} — start with ${top.title}.`;
 
   return {
     greeting,

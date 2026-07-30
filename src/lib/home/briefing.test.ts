@@ -29,4 +29,10 @@ describe("buildBriefing", () => {
     expect(b.lead.toLowerCase()).toMatch(/1 main branch/);
     expect(b.primary?.label.toLowerCase()).toContain("failing");
   });
+
+  it("uses singular verb 'needs' when there is exactly one need", () => {
+    const b = buildBriefing([need()], 0, MORNING, "chien");
+    expect(b.lead).toContain("One thing needs you");
+    expect(b.lead).not.toContain("One thing need you");
+  });
 });
