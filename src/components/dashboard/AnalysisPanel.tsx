@@ -1,8 +1,6 @@
 import type { GithubData } from "@/lib/github/types";
-import { RULES } from "@/lib/ranking/rules";
+import { computeGlanceCounts } from "@/lib/github/glance";
 import type { TileKind } from "./focusFilter";
-
-const DAY = 86_400_000;
 
 type Tone = "neutral" | "amber" | "orange" | "red" | "rose";
 
@@ -22,31 +20,17 @@ interface Tile {
   tone: Tone;
 }
 
-const ACTIONABLE_REASONS = new Set<string>([
-  ...RULES.notifications.tiers.act,
-  ...RULES.notifications.tiers.involved,
-]);
-
 // Kept out of the component body so the Date.now() read isn't an impure render.
 function computeTiles(data: GithubData): Tile[] {
-  const now = Date.now();
-  const active = data.prs.filter((p) => !p.isDraft);
-  const needsReview = active.filter((p) => p.reviewRequestedForMe).length;
-  const conflicts = data.prs.filter((p) => p.mergeable === "CONFLICTING").length;
-  const aging = active.filter((p) => now - Date.parse(p.createdAt) >= 3 * DAY).length;
-  const stale = active.filter(
-    (p) => now - Date.parse(p.lastActivity.at ?? p.createdAt) >= 2 * DAY,
-  ).length;
-  const waiting = data.notifications.filter((n) => ACTIONABLE_REASONS.has(n.reason)).length;
-
+  const c = computeGlanceCounts(data, Date.now());
   return [
-    { kind: "waiting", label: "Waiting on you", value: waiting, tone: waiting ? "orange" : "neutral" },
-    { kind: "failing", label: "Failing main", value: data.actions.length, tone: data.actions.length ? "red" : "neutral" },
-    { kind: "review", label: "Your review", value: needsReview, tone: needsReview ? "amber" : "neutral" },
-    { kind: "conflicts", label: "Conflicts", value: conflicts, tone: conflicts ? "rose" : "neutral" },
-    { kind: "aging", label: "Aging 3d+", value: aging, tone: aging ? "orange" : "neutral" },
-    { kind: "stale", label: "Stale 2d+", value: stale, tone: stale ? "amber" : "neutral" },
-    { kind: "open", label: "Open PRs", value: data.prs.length, tone: "neutral" },
+    { kind: "waiting", label: "Waiting on you", value: c.waiting, tone: c.waiting ? "orange" : "neutral" },
+    { kind: "failing", label: "Failing main", value: c.failing, tone: c.failing ? "red" : "neutral" },
+    { kind: "review", label: "Your review", value: c.review, tone: c.review ? "amber" : "neutral" },
+    { kind: "conflicts", label: "Conflicts", value: c.conflicts, tone: c.conflicts ? "rose" : "neutral" },
+    { kind: "aging", label: "Aging 3d+", value: c.aging, tone: c.aging ? "orange" : "neutral" },
+    { kind: "stale", label: "Stale 2d+", value: c.stale, tone: c.stale ? "amber" : "neutral" },
+    { kind: "open", label: "Open PRs", value: c.openPrs, tone: "neutral" },
   ];
 }
 

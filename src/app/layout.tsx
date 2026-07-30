@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist_Mono, Hanken_Grotesk } from "next/font/google";
+import { auth } from "@/auth";
+import { AppShell } from "@/components/layout/AppShell";
+import { SignInOut } from "@/components/auth/SignInOut";
 import "./globals.css";
 
 const sans = Hanken_Grotesk({
@@ -28,20 +31,25 @@ export const metadata: Metadata = {
 // Runs before paint so the stored/system theme is applied without a flash.
 const themeScript = `(function(){try{var t=localStorage.getItem('theme');var d=t==='dark'||((!t||t==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);}catch(e){}})();`;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+  const viewer = session?.user?.name ?? session?.user?.email ?? null;
+
   return (
     <html
       lang="en"
       suppressHydrationWarning
       className={`${sans.variable} ${serif.variable} ${mono.variable} h-full antialiased`}
     >
-      <body className="flex min-h-full flex-col">
+      <body className="min-h-full">
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-        {children}
+        <AppShell signInSlot={<SignInOut />} viewer={viewer}>
+          {children}
+        </AppShell>
       </body>
     </html>
   );
