@@ -6,10 +6,10 @@ describe("buildClaudeArgs", () => {
     const a = buildClaudeArgs("claude-sonnet-5");
     expect(a).toEqual(["-p", "--output-format", "json", "--model", "claude-sonnet-5"]);
   });
-  it("appends the image path and Read tool when given an image", () => {
+  it("enables the Read tool for an image (path goes in the prompt, not argv)", () => {
     const a = buildClaudeArgs("claude-sonnet-5", "/tmp/x.png");
     expect(a).toContain("--allowedTools");
     expect(a).toContain("Read");
-    expect(a[a.length - 1]).toBe("/tmp/x.png");
+    expect(a).not.toContain("/tmp/x.png");
   });
 });

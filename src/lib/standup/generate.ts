@@ -7,13 +7,21 @@ export class ClaudeUnavailableError extends Error {}
 /**
  * Pure: the headless CLI args. Deliberately NOT `--bare`: in current Claude Code,
  * bare mode ignores CLAUDE_CODE_OAUTH_TOKEN and reports "Not logged in", so we use
- * plain `-p` (which honors the subscription token). Image goes last so Claude reads
- * it via the Read tool.
+ * plain `-p` (which honors the subscription token). For images we only enable the
+ * Read tool — the path is referenced in the prompt, NOT passed as a positional arg
+ * (a bare positional image path is ignored by `claude -p`, which reads its prompt
+ * from stdin).
  */
 export function buildClaudeArgs(model: string, imagePath?: string): string[] {
   const args = ["-p", "--output-format", "json", "--model", model];
-  if (imagePath) args.push("--allowedTools", "Read", imagePath);
+  if (imagePath) args.push("--allowedTools", "Read");
   return args;
+}
+
+/** Append the "read this screenshot" instruction so Claude opens the image via its Read tool. */
+function withImage(prompt: string, imagePath?: string): string {
+  if (!imagePath) return prompt;
+  return `${prompt}\n\nThe screenshot to analyze is saved at this exact path — use the Read tool to open it, then follow the instructions above:\n${imagePath}`;
 }
 
 /**
@@ -64,7 +72,7 @@ export function runClaude(prompt: string, model: string, imagePath?: string): Pr
         }
       }),
     );
-    child.stdin.write(prompt);
+    child.stdin.write(withImage(prompt, imagePath));
     child.stdin.end();
   });
 }

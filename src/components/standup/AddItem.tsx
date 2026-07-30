@@ -62,11 +62,13 @@ export function AddItem({
       const dataUrl = await readAsDataUrl(file);
       const res = await action({ action: "deriveImage", dataUrl });
       if (res.aiError || res.error) {
-        setImageError(res.aiError ?? res.error ?? null);
-      } else if (Array.isArray(res.items)) {
+        setImageError("Claude Code unavailable — run: claude setup-token");
+      } else if (Array.isArray(res.items) && res.items.length > 0) {
         for (const item of res.items) {
           await mutateOp({ op: "add", text: item });
         }
+      } else {
+        setImageError("No action items found in that screenshot.");
       }
     } finally {
       setDeriving(false);
@@ -121,7 +123,7 @@ export function AddItem({
       </p>
       {imageError && (
         <p className="border-t border-border bg-amber-50 px-5 py-2.5 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-300">
-          Claude Code unavailable — run <code className="font-mono">claude setup-token</code>.
+          {imageError}
         </p>
       )}
     </>
