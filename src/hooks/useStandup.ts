@@ -16,7 +16,7 @@ export interface StandupGetData {
   items: TrackedItem[];
   facts: StandupFacts | null;
   today: StandupDay | null;
-  days: string[];
+  days: { date: string; posted: boolean }[];
 }
 
 /** `PUT /api/standup` bodies. */
@@ -25,7 +25,9 @@ export type StandupOp =
   | { op: "resolve"; id: string; status: "done" | "dropped" }
   | { op: "followup"; id: string }
   | { op: "notes"; notes: string }
-  | { op: "saveText"; text: string };
+  | { op: "saveText"; text: string }
+  | { op: "post"; text: string }
+  | { op: "unpost" };
 
 /** `POST /api/standup` bodies. */
 export type StandupAction =

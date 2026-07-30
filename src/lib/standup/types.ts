@@ -47,6 +47,10 @@ export interface StandupDay {
   manualNotes: string;
   doneItemIds: string[];
   generatedText: string; // editable prose (Yesterday/Today)
+  /** When the user marked this day as reported (ISO); absent/null if not posted. */
+  postedAt?: string | null;
+  /** Snapshot of exactly what was reported, at post time. */
+  postedText?: string | null;
 }
 
 /** Live cross-day state. */

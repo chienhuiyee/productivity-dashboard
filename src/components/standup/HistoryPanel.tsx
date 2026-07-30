@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Check } from "lucide-react";
 import type { StandupAction, StandupActionResult, StandupGetData } from "@/hooks/useStandup";
 import type { StandupDay } from "@/lib/standup/types";
 import { CopyButton } from "@/components/ui/CopyButton";
@@ -12,6 +13,12 @@ function formatDayLabel(date: string): string {
   const d = new Date(`${date}T00:00:00`);
   if (Number.isNaN(d.getTime())) return date;
   return d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
+
+function postedLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
 }
 
 /** Week/month AI roll-up + a browsable list of past days with a read-only saved-report panel. */
@@ -143,16 +150,22 @@ export function HistoryPanel({
           ) : (
             <ul className="flex flex-col divide-y divide-border">
               {days.map((d) => (
-                <li key={d}>
+                <li key={d.date}>
                   <button
                     type="button"
-                    onClick={() => void viewDay(d)}
-                    aria-current={selectedDate === d}
-                    className={`block w-full px-5 py-3 text-left text-sm font-medium transition-colors hover:bg-surface-muted ${
-                      selectedDate === d ? "bg-surface-muted" : ""
+                    onClick={() => void viewDay(d.date)}
+                    aria-current={selectedDate === d.date}
+                    className={`flex w-full items-center justify-between gap-2 px-5 py-3 text-left text-sm font-medium transition-colors hover:bg-surface-muted ${
+                      selectedDate === d.date ? "bg-surface-muted" : ""
                     }`}
                   >
-                    {formatDayLabel(d)}
+                    <span>{formatDayLabel(d.date)}</span>
+                    {d.posted && (
+                      <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400">
+                        <Check className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                        posted
+                      </span>
+                    )}
                   </button>
                 </li>
               ))}
@@ -172,10 +185,18 @@ export function HistoryPanel({
             <p className="px-5 py-6 text-center text-sm text-muted">Loading…</p>
           ) : dayHint ? (
             <p className="px-5 py-6 text-center text-sm text-muted">{dayHint}</p>
-          ) : !selectedDay?.generatedText ? (
-            <p className="px-5 py-6 text-center text-sm text-muted">No generated text was saved for this day.</p>
+          ) : !(selectedDay?.postedText || selectedDay?.generatedText) ? (
+            <p className="px-5 py-6 text-center text-sm text-muted">No standup was saved for this day.</p>
           ) : (
-            <div className="px-5 py-4">{renderStandup(selectedDay.generatedText)}</div>
+            <div className="px-5 py-4">
+              {selectedDay?.postedAt && (
+                <p className="mb-3 inline-flex items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-400">
+                  <Check className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+                  Posted · {postedLabel(selectedDay.postedAt)}
+                </p>
+              )}
+              {renderStandup((selectedDay?.postedText ?? selectedDay?.generatedText) as string)}
+            </div>
           )}
         </section>
       </div>

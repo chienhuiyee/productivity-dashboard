@@ -5,13 +5,22 @@ import { Check, Copy, Pencil, Sparkles } from "lucide-react";
 import type { StandupAction, StandupActionResult, StandupOp } from "@/hooks/useStandup";
 import { renderStandup } from "./standupText";
 
-/** Generate button + rendered Yesterday/Today standup (with an Edit toggle) + Copy. */
+/** "Posted · Thu, 9:52 AM" label for the reported timestamp. */
+function postedLabel(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" });
+}
+
+/** Generate + rendered standup (Edit toggle) + Copy + Mark-as-posted. */
 export function GenerateBlock({
   initialText,
+  initialPostedAt,
   action,
   mutateOp,
 }: {
   initialText: string;
+  initialPostedAt: string | null;
   action: (body: StandupAction) => Promise<StandupActionResult>;
   mutateOp: (body: StandupOp) => Promise<void>;
 }) {
@@ -20,8 +29,12 @@ export function GenerateBlock({
   const [aiError, setAiError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [postedAt, setPostedAt] = useState<string | null>(initialPostedAt);
 
   async function generate() {
+    if (postedAt && !window.confirm("You marked today as posted. Generate a new draft? Your posted report stays as-is.")) {
+      return;
+    }
     setGenerating(true);
     setAiError(null);
     try {
@@ -52,6 +65,17 @@ export function GenerateBlock({
     }
   }
 
+  async function markPosted() {
+    await mutateOp({ op: "post", text });
+    setPostedAt(new Date().toISOString());
+    setEditing(false);
+  }
+
+  async function reopen() {
+    await mutateOp({ op: "unpost" });
+    setPostedAt(null);
+  }
+
   return (
     <section className="rounded-xl border border-border bg-surface shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
@@ -75,11 +99,18 @@ export function GenerateBlock({
         </p>
       )}
 
-      <div className="flex items-center justify-between border-t border-border bg-surface-muted px-5 py-2.5">
-        <span className="inline-flex items-center gap-1.5 text-xs text-muted">
-          <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
-          Polished by Claude
-        </span>
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-surface-muted px-5 py-2.5">
+        {postedAt ? (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-700 dark:text-green-400">
+            <Check className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+            Posted · {postedLabel(postedAt)}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 text-xs text-muted">
+            <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+            Polished by Claude
+          </span>
+        )}
         <div className="flex items-center gap-1.5">
           <button
             type="button"
@@ -106,6 +137,24 @@ export function GenerateBlock({
             )}
             {copied ? "Copied" : "Copy"}
           </button>
+          {postedAt ? (
+            <button
+              type="button"
+              onClick={() => void reopen()}
+              className="rounded-lg px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:bg-surface hover:text-foreground"
+            >
+              Reopen
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void markPosted()}
+              disabled={!text}
+              className="rounded-lg border border-accent px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent/10 disabled:opacity-50"
+            >
+              Mark as posted
+            </button>
+          )}
         </div>
       </div>
 

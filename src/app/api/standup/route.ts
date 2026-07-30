@@ -62,7 +62,7 @@ export async function GET(request: Request) {
     items: state.items,
     facts,
     today: await readDay(todayDate(now)),
-    days: await listDays(),
+    days: await listDaysWithPosted(),
   });
 }
 
@@ -96,6 +96,26 @@ export async function PUT(request: Request) {
       const day = (await readDay(date)) ?? emptyDay(date, now);
       day.generatedText = String(body.text ?? "");
       await writeDay(day);
+      return NextResponse.json({ ok: true });
+    }
+    case "post": {
+      const date = todayDate(now);
+      const day = (await readDay(date)) ?? emptyDay(date, now);
+      const text = typeof body.text === "string" ? body.text : day.generatedText;
+      day.generatedText = text;
+      day.postedText = text; // snapshot of exactly what was reported
+      day.postedAt = new Date(now).toISOString();
+      await writeDay(day);
+      return NextResponse.json({ ok: true, postedAt: day.postedAt });
+    }
+    case "unpost": {
+      const date = todayDate(now);
+      const day = await readDay(date);
+      if (day) {
+        day.postedAt = null;
+        day.postedText = null;
+        await writeDay(day);
+      }
       return NextResponse.json({ ok: true });
     }
     default:
@@ -179,5 +199,13 @@ function emptyDay(date: string, now: number) {
     manualNotes: "",
     doneItemIds: [],
     generatedText: "",
+    postedAt: null,
+    postedText: null,
   };
+}
+
+/** Day dates (newest first) tagged with whether each was marked posted. */
+async function listDaysWithPosted(): Promise<{ date: string; posted: boolean }[]> {
+  const dates = await listDays();
+  return Promise.all(dates.map(async (d) => ({ date: d, posted: !!(await readDay(d))?.postedAt })));
 }

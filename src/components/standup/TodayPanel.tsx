@@ -45,7 +45,12 @@ export function TodayPanel({
 
       <NotesField initialNotes={data.today?.manualNotes ?? ""} mutateOp={mutateOp} />
 
-      <GenerateBlock initialText={data.today?.generatedText ?? ""} action={action} mutateOp={mutateOp} />
+      <GenerateBlock
+        initialText={data.today?.generatedText ?? ""}
+        initialPostedAt={data.today?.postedAt ?? null}
+        action={action}
+        mutateOp={mutateOp}
+      />
 
       <FactsPanel facts={data.facts} />
 
