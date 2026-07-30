@@ -8,6 +8,7 @@ import { CopyButton } from "@/components/ui/CopyButton";
 import { RelativeTime } from "@/components/ui/RelativeTime";
 import { EmptyState } from "./WidgetCard";
 import { FOCUS_LABEL, filterByFocus, type PrFocus } from "./focusFilter";
+import { authorFacets, filterByAuthor } from "./authorFilter";
 
 const DAY = 86_400_000;
 
@@ -76,10 +77,15 @@ export function PullRequestsWidget({
 }) {
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useState<SortMode>("urgency");
+  const [author, setAuthor] = useState<string | null>(null);
+
+  // Author chips are drawn from every open PR, so the people list stays stable
+  // regardless of the active text/focus filter.
+  const people = useMemo(() => authorFacets(prs), [prs]);
 
   const visible = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    let list = filterByFocus(prs, focus);
+    let list = filterByAuthor(filterByFocus(prs, focus), author);
     if (q) {
       list = list.filter(
         (p) =>
@@ -98,7 +104,7 @@ export function PullRequestsWidget({
     }
     // "urgency" keeps the server's score order.
     return list;
-  }, [prs, filter, sort, focus]);
+  }, [prs, filter, sort, focus, author]);
 
   if (prs.length === 0) {
     return (
@@ -132,6 +138,41 @@ export function PullRequestsWidget({
             <CopyAllButton urls={visible.map((p) => p.url)} />
           </div>
 
+          {people.length > 1 && (
+            <div className="mb-3 flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-xs font-medium text-muted">People:</span>
+              {people.map((f) => {
+                const active = author === f.author;
+                return (
+                  <button
+                    key={f.author}
+                    type="button"
+                    onClick={() => setAuthor(active ? null : f.author)}
+                    aria-pressed={active}
+                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                      active
+                        ? "border-accent bg-accent/10 text-accent"
+                        : "border-border text-muted hover:bg-surface-muted hover:text-foreground"
+                    }`}
+                  >
+                    <span className="max-w-[12rem] truncate">{f.author}</span>
+                    <span className="tabular-nums opacity-70">{f.count}</span>
+                  </button>
+                );
+              })}
+              {author && (
+                <button
+                  type="button"
+                  onClick={() => setAuthor(null)}
+                  className="ml-0.5 inline-flex items-center gap-1 text-xs text-muted transition-colors hover:text-foreground"
+                >
+                  <X className="h-3 w-3" strokeWidth={2} aria-hidden />
+                  clear
+                </button>
+              )}
+            </div>
+          )}
+
           {focus !== "all" && (
             <div className="mb-3 flex items-center gap-2 text-xs text-muted">
               <span>Focus:</span>
@@ -151,7 +192,8 @@ export function PullRequestsWidget({
 
           {visible.length === 0 ? (
             <EmptyState>
-              No PRs match{filter ? ` “${filter}”` : focus !== "all" ? " this focus filter" : ""}.
+              No PRs match
+              {filter ? ` “${filter}”` : author ? ` by ${author}` : focus !== "all" ? " this focus filter" : ""}.
               {focus !== "all" && (
                 <button type="button" onClick={onClearFocus} className="ml-2 underline">
                   clear filter
@@ -216,9 +258,10 @@ export function PullRequestsWidget({
             </ul>
           )}
 
-      {filter && visible.length > 0 && (
+      {(filter || author) && visible.length > 0 && (
         <p className="mt-3 text-xs text-muted">
-          Showing {visible.length} of {prs.length}.
+          Showing {visible.length} of {prs.length}
+          {author ? ` · by ${author}` : ""}.
         </p>
       )}
     </>
