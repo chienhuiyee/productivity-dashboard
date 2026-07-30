@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { buildClaudeArgs } from "./generate";
 
 describe("buildClaudeArgs", () => {
-  it("builds bare headless JSON args with a model", () => {
+  it("builds headless JSON args with a model (no --bare, which breaks token auth)", () => {
     const a = buildClaudeArgs("claude-sonnet-5");
-    expect(a).toEqual(["--bare", "-p", "--output-format", "json", "--model", "claude-sonnet-5"]);
+    expect(a).toEqual(["-p", "--output-format", "json", "--model", "claude-sonnet-5"]);
   });
   it("appends the image path and Read tool when given an image", () => {
     const a = buildClaudeArgs("claude-sonnet-5", "/tmp/x.png");
