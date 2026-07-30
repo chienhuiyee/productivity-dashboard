@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { StandupAction, StandupActionResult, StandupGetData } from "@/hooks/useStandup";
 import type { StandupDay } from "@/lib/standup/types";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { renderStandup } from "./standupText";
 
 type RollRange = "week" | "month";
 
@@ -122,7 +123,7 @@ export function HistoryPanel({
           <p className="px-5 py-6 text-center text-sm text-muted">Summarizing…</p>
         ) : rollText ? (
           <div className="flex items-start justify-between gap-3 px-5 py-4">
-            <p className="min-w-0 flex-1 whitespace-pre-wrap text-sm leading-relaxed">{rollText}</p>
+            <div className="min-w-0 flex-1">{renderStandup(rollText)}</div>
             <CopyButton value={rollText} />
           </div>
         ) : (
@@ -174,7 +175,7 @@ export function HistoryPanel({
           ) : !selectedDay?.generatedText ? (
             <p className="px-5 py-6 text-center text-sm text-muted">No generated text was saved for this day.</p>
           ) : (
-            <p className="whitespace-pre-wrap px-5 py-4 text-sm leading-relaxed">{selectedDay.generatedText}</p>
+            <div className="px-5 py-4">{renderStandup(selectedDay.generatedText)}</div>
           )}
         </section>
       </div>

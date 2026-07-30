@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Sparkles } from "lucide-react";
+import { Check, Copy, Pencil, Sparkles } from "lucide-react";
 import type { StandupAction, StandupActionResult, StandupOp } from "@/hooks/useStandup";
+import { renderStandup } from "./standupText";
 
-/** Generate button + editable Yesterday/Today prose + Copy, with an AI-unavailable fallback hint. */
+/** Generate button + rendered Yesterday/Today standup (with an Edit toggle) + Copy. */
 export function GenerateBlock({
   initialText,
   action,
@@ -18,6 +19,7 @@ export function GenerateBlock({
   const [generating, setGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   async function generate() {
     setGenerating(true);
@@ -28,13 +30,14 @@ export function GenerateBlock({
         setAiError(res.aiError ?? res.error ?? null);
       } else if (res.text !== undefined) {
         setText(res.text);
+        setEditing(false);
       }
     } finally {
       setGenerating(false);
     }
   }
 
-  async function saveOnBlur() {
+  async function saveText() {
     await mutateOp({ op: "saveText", text });
   }
 
@@ -75,32 +78,56 @@ export function GenerateBlock({
       <div className="flex items-center justify-between border-t border-border bg-surface-muted px-5 py-2.5">
         <span className="inline-flex items-center gap-1.5 text-xs text-muted">
           <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
-          Polished by Claude · editable
+          Polished by Claude
         </span>
-        <button
-          type="button"
-          onClick={() => void copy()}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-surface"
-        >
-          {copied ? (
-            <Check className="h-3.5 w-3.5 text-accent" strokeWidth={2} aria-hidden />
-          ) : (
-            <Copy className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
-          )}
-          {copied ? "Copied" : "Copy"}
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              if (editing) void saveText();
+              setEditing((e) => !e);
+            }}
+            disabled={!text && !editing}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-surface disabled:opacity-50"
+          >
+            <Pencil className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden />
+            {editing ? "Done" : "Edit"}
+          </button>
+          <button
+            type="button"
+            onClick={() => void copy()}
+            disabled={!text}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-surface disabled:opacity-50"
+          >
+            {copied ? (
+              <Check className="h-3.5 w-3.5 text-accent" strokeWidth={2} aria-hidden />
+            ) : (
+              <Copy className="h-3.5 w-3.5" strokeWidth={2} aria-hidden />
+            )}
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
       </div>
 
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onBlur={() => void saveOnBlur()}
-        placeholder="Click Generate, or write your own Yesterday / Today notes here."
-        rows={10}
-        spellCheck={false}
-        aria-label="Generated standup text"
-        className="w-full resize-y bg-transparent px-5 py-4 text-sm leading-relaxed outline-none placeholder:text-muted"
-      />
+      {editing ? (
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={() => void saveText()}
+          placeholder="Write your own Yesterday / Today notes here."
+          rows={14}
+          spellCheck={false}
+          aria-label="Edit standup text"
+          className="w-full resize-y bg-transparent px-5 py-4 font-mono text-sm leading-relaxed outline-none placeholder:text-muted"
+        />
+      ) : text ? (
+        <div className="px-5 py-4">{renderStandup(text)}</div>
+      ) : (
+        <p className="px-5 py-8 text-center text-sm text-muted">
+          Click <span className="font-medium text-foreground">Generate standup</span> to create it, or
+          <span className="font-medium text-foreground"> Edit</span> to write your own.
+        </p>
+      )}
     </section>
   );
 }
