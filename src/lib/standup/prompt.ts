@@ -29,9 +29,12 @@ export function buildGeneratePrompt(
   notes: string,
 ): string {
   const parts = [
-    "You are writing a developer's daily standup. Use ONLY the facts below — do not invent work.",
-    "Write two short sections, 'Yesterday' and 'Today', as tight bullet points suitable to read aloud.",
-    "Group related items; be concise; no preamble. Keep any dates and times exactly as written.",
+    "You are writing a developer's daily standup. Use ONLY the facts below — never invent work.",
+    "Two sections, with the plain-text headers 'Yesterday' and 'Today' (no markdown, no ** or #).",
+    "Make it SCANNABLE: short bullets, ONE idea per bullet, about 12 words max, at most one comma per bullet.",
+    "Lead each Yesterday bullet with the project/area it belongs to; use several short bullets, not one long dense line.",
+    "Plain spoken language; expand or drop cryptic codes (e.g. 'W0-4', 'doc_no'). No preamble and no closing remarks.",
+    "Keep any dates and times exactly as written.",
     "",
     "FACTS — yesterday:",
     refLines("Merged PRs", facts.mergedPrs),
