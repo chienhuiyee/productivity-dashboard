@@ -30,7 +30,7 @@ export async function writeState(state: StandupState, db?: string): Promise<void
 export async function readDay(date: string, db?: string): Promise<StandupDay | null> {
   const doc = await (await daysCollection(db)).findOne({ _id: date });
   if (!doc) return null;
-  const { _id: _ignored, ...day } = doc;
+  const { _id, ...day } = doc;
   return day;
 }
 
@@ -58,5 +58,5 @@ export async function recentDays(limit: number, db?: string): Promise<StandupDay
   const docs = await (await daysCollection(db))
     .find({}, { sort: { _id: -1 }, limit })
     .toArray();
-  return docs.map(({ _id: _ignored, ...day }) => day);
+  return docs.map(({ _id, ...day }) => day);
 }

@@ -15,7 +15,7 @@ async function configCollection(db?: string) {
 export async function readConfig(db?: string): Promise<AppConfig> {
   const doc = await (await configCollection(db)).findOne({ _id: CONFIG_ID });
   if (!doc) return DEFAULT_CONFIG;
-  const { _id: _ignored, ...stored } = doc;
+  const { _id, ...stored } = doc;
   const parsed = configSchema.safeParse(stored);
   return parsed.success ? parsed.data : DEFAULT_CONFIG;
 }
