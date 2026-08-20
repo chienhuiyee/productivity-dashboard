@@ -1,7 +1,4 @@
 import { NextResponse } from "next/server";
-import { writeFile, unlink, mkdir } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { auth } from "@/auth";
 import { readConfig } from "@/lib/config/store";
 import { getGithubData } from "@/lib/github/provider";
@@ -10,11 +7,14 @@ import { computeWindow } from "@/lib/standup/window";
 import { assembleFacts } from "@/lib/standup/collect";
 import { createItem, openItems, resolveItem, spawnFollowUp } from "@/lib/standup/items";
 import { buildGeneratePrompt, buildRollupPrompt, IMAGE_EXTRACT_PROMPT, parseImageItems } from "@/lib/standup/prompt";
-import { ClaudeUnavailableError, runClaude } from "@/lib/standup/generate";
+import { ClaudeUnavailableError, generateText } from "@/lib/standup/generate";
 import { listDaysWithPosted, readDay, readState, recentDays, writeDay, writeState } from "@/lib/standup/store";
 import type { StandupFacts } from "@/lib/standup/types";
 
 export const dynamic = "force-dynamic";
+// Anthropic calls can outlast the default function timeout. 60s is the Hobby
+// ceiling; raise if the Vercel account is on Pro.
+export const maxDuration = 60;
 
 function todayDate(now: number): string {
   const d = new Date(now);
@@ -151,7 +151,7 @@ export async function POST(request: Request) {
       const existingDay = await readDay(date);
       const notes = typeof body.notes === "string" ? body.notes : (existingDay?.manualNotes ?? "");
       const prompt = buildGeneratePrompt(facts, done, openItems(state.items), notes);
-      const text = await runClaude(prompt, model);
+      const text = await generateText(prompt, model);
       // Re-read so a notes edit saved during the (possibly long) generate call isn't clobbered.
       const latest = (await readDay(date)) ?? existingDay ?? emptyDay(date, now);
       Object.assign(latest, { facts, generatedText: text, windowFrom: win.from, windowTo: win.to });
@@ -161,23 +161,16 @@ export async function POST(request: Request) {
 
     if (body.action === "rollup") {
       const days = (await recentDays(body.range === "month" ? 31 : 7)).map((d) => ({ date: d.date, facts: d.facts }));
-      const text = await runClaude(buildRollupPrompt(days, body.range === "month" ? "month" : "week"), model);
+      const text = await generateText(buildRollupPrompt(days, body.range === "month" ? "month" : "week"), model);
       return NextResponse.json({ text });
     }
 
     if (body.action === "deriveImage") {
       // body.dataUrl = "data:image/png;base64,...."
       const base64 = String(body.dataUrl ?? "").split(",")[1] ?? "";
-      const dir = join(tmpdir(), "standup-shots");
-      await mkdir(dir, { recursive: true });
-      const path = join(dir, `${newId(now)}.png`);
-      await writeFile(path, Buffer.from(base64, "base64"));
-      try {
-        const raw = await runClaude(IMAGE_EXTRACT_PROMPT, model, path);
-        return NextResponse.json({ items: parseImageItems(raw) });
-      } finally {
-        await unlink(path).catch(() => {});
-      }
+      if (!base64) return NextResponse.json({ error: "no image data" }, { status: 400 });
+      const raw = await generateText(IMAGE_EXTRACT_PROMPT, model, base64);
+      return NextResponse.json({ items: parseImageItems(raw) });
     }
 
     return NextResponse.json({ error: "unknown action" }, { status: 400 });
