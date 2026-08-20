@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import GitHub from "next-auth/providers/github";
+import { isAllowedLogin } from "@/lib/auth/allowlist";
 
 /**
  * NextAuth v5 (Auth.js) config for a single-user, localhost GitHub dashboard.
@@ -19,6 +20,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
   session: { strategy: "jwt" },
   callbacks: {
+    // The deployed app is on a public URL, so the OAuth flow would otherwise
+    // accept any GitHub account. Fails closed if ALLOWED_GITHUB_LOGIN is unset.
+    async signIn({ profile }) {
+      return isAllowedLogin(profile?.login, process.env.ALLOWED_GITHUB_LOGIN);
+    },
     async jwt({ token, account }) {
       if (account?.access_token) {
         token.accessToken = account.access_token;
