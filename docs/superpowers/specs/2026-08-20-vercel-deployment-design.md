@@ -87,9 +87,11 @@ db.collection("standupDays")
   .sort({ _id: -1 })
 ```
 
-`listDays` keeps its `string[]` signature for existing callers; `listDaysWithPosted` moves into the store module and returns the tagged list directly.
+`listDaysWithPosted` moves into the store module and returns the tagged list directly.
 
-The week/month rollup at `route.ts:163` currently reads N day files individually. It becomes one range query over `_id`.
+The week/month rollup at `route.ts:163` currently lists dates and then issues a read per date. It becomes `recentDays(limit)` — one sorted, limited query returning whole documents.
+
+Between them these two cover every caller, so the bare `listDays` date list is dropped rather than kept as dead code.
 
 ### AI generation
 
