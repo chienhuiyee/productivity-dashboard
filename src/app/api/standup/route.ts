@@ -11,7 +11,7 @@ import { assembleFacts } from "@/lib/standup/collect";
 import { createItem, openItems, resolveItem, spawnFollowUp } from "@/lib/standup/items";
 import { buildGeneratePrompt, buildRollupPrompt, IMAGE_EXTRACT_PROMPT, parseImageItems } from "@/lib/standup/prompt";
 import { ClaudeUnavailableError, runClaude } from "@/lib/standup/generate";
-import { listDays, readDay, readState, writeDay, writeState } from "@/lib/standup/store";
+import { listDaysWithPosted, readDay, readState, recentDays, writeDay, writeState } from "@/lib/standup/store";
 import type { StandupFacts } from "@/lib/standup/types";
 
 export const dynamic = "force-dynamic";
@@ -160,8 +160,7 @@ export async function POST(request: Request) {
     }
 
     if (body.action === "rollup") {
-      const dates = (await listDays()).slice(0, body.range === "month" ? 31 : 7);
-      const days = (await Promise.all(dates.map((d) => readDay(d)))).filter(Boolean).map((d) => ({ date: d!.date, facts: d!.facts }));
+      const days = (await recentDays(body.range === "month" ? 31 : 7)).map((d) => ({ date: d.date, facts: d.facts }));
       const text = await runClaude(buildRollupPrompt(days, body.range === "month" ? "month" : "week"), model);
       return NextResponse.json({ text });
     }
@@ -202,10 +201,4 @@ function emptyDay(date: string, now: number) {
     postedAt: null,
     postedText: null,
   };
-}
-
-/** Day dates (newest first) tagged with whether each was marked posted. */
-async function listDaysWithPosted(): Promise<{ date: string; posted: boolean }[]> {
-  const dates = await listDays();
-  return Promise.all(dates.map(async (d) => ({ date: d, posted: !!(await readDay(d))?.postedAt })));
 }

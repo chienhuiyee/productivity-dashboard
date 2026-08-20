@@ -1,35 +1,98 @@
-import { afterEach, describe, expect, it } from "vitest";
-import { mkdtempSync, rmSync } from "node:fs";
-import { writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { listDays, readDay, readState, writeDay, writeState } from "./store";
+import { describe, expect, it } from "vitest";
+import { withTestDb } from "@/lib/db/testing";
+import { listDaysWithPosted, readDay, readState, recentDays, writeDay, writeState } from "./store";
+import type { StandupDay } from "./types";
 
-const dirs: string[] = [];
-function tmp() { const d = mkdtempSync(join(tmpdir(), "standup-")); dirs.push(d); return d; }
-afterEach(() => { dirs.splice(0).forEach((d) => rmSync(d, { recursive: true, force: true })); });
+const hasDb = !!process.env.MONGODB_URI;
 
-describe("store", () => {
+function day(date: string, extra: Partial<StandupDay> = {}): StandupDay {
+  return {
+    date,
+    windowFrom: "",
+    windowTo: "",
+    facts: {} as never,
+    manualNotes: "",
+    doneItemIds: [],
+    generatedText: "",
+    ...extra,
+  };
+}
+
+describe.skipIf(!hasDb)("standup store", () => {
+  it("returns empty state before anything is written", async () => {
+    await withTestDb(async (db) => {
+      expect(await readState(db)).toEqual({ items: [] });
+    });
+  });
+
   it("round-trips state", async () => {
-    const d = tmp();
-    expect(await readState(d)).toEqual({ items: [] });
-    await writeState({ items: [{ id: "a", text: "x", type: "task", status: "open", createdAt: "", updatedAt: "", scheduledFor: null, parentId: null }] }, d);
-    expect((await readState(d)).items).toHaveLength(1);
+    await withTestDb(async (db) => {
+      await writeState(
+        {
+          items: [
+            { id: "a", text: "x", type: "task", status: "open", createdAt: "", updatedAt: "", scheduledFor: null, parentId: null },
+          ],
+        },
+        db,
+      );
+      expect((await readState(db)).items).toHaveLength(1);
+      expect((await readState(db)).items[0].id).toBe("a");
+    });
   });
 
   it("round-trips a day and lists newest first", async () => {
-    const d = tmp();
-    const day = (date: string) => ({ date, windowFrom: "", windowTo: "", facts: {} as never, manualNotes: "", doneItemIds: [], generatedText: "" });
-    await writeDay(day("2026-07-24"), d);
-    await writeDay(day("2026-07-25"), d);
-    expect(await listDays(d)).toEqual(["2026-07-25", "2026-07-24"]);
-    expect((await readDay("2026-07-24", d))?.date).toBe("2026-07-24");
-    expect(await readDay("2026-01-01", d)).toBeNull();
+    await withTestDb(async (db) => {
+      await writeDay(day("2026-07-24"), db);
+      await writeDay(day("2026-07-25"), db);
+      expect((await listDaysWithPosted(db)).map((d) => d.date)).toEqual(["2026-07-25", "2026-07-24"]);
+      expect((await readDay("2026-07-24", db))?.date).toBe("2026-07-24");
+      expect(await readDay("2026-01-01", db)).toBeNull();
+    });
   });
 
-  it("rethrows on a corrupted state file instead of silently returning empty", async () => {
-    const d = tmp();
-    await writeFile(join(d, "standup-state.json"), "{ not valid json", "utf8");
-    await expect(readState(d)).rejects.toThrow();
+  it("overwrites a day rather than creating a duplicate", async () => {
+    await withTestDb(async (db) => {
+      await writeDay(day("2026-07-24", { generatedText: "first" }), db);
+      await writeDay(day("2026-07-24", { generatedText: "second" }), db);
+      expect(await listDaysWithPosted(db)).toEqual([{ date: "2026-07-24", posted: false }]);
+      expect((await readDay("2026-07-24", db))?.generatedText).toBe("second");
+    });
+  });
+
+  it("tags each day with whether it was posted", async () => {
+    await withTestDb(async (db) => {
+      await writeDay(day("2026-07-24", { postedAt: "2026-07-24T09:00:00Z" }), db);
+      await writeDay(day("2026-07-25"), db);
+      expect(await listDaysWithPosted(db)).toEqual([
+        { date: "2026-07-25", posted: false },
+        { date: "2026-07-24", posted: true },
+      ]);
+    });
+  });
+
+  it("returns whole recent days newest first, capped at the limit", async () => {
+    await withTestDb(async (db) => {
+      await writeDay(day("2026-07-23", { generatedText: "oldest" }), db);
+      await writeDay(day("2026-07-24", { generatedText: "middle" }), db);
+      await writeDay(day("2026-07-25", { generatedText: "newest" }), db);
+      const recent = await recentDays(2, db);
+      expect(recent.map((d) => d.date)).toEqual(["2026-07-25", "2026-07-24"]);
+      expect(recent[0].generatedText).toBe("newest");
+    });
+  });
+
+  it("returns every day when the limit exceeds the document count", async () => {
+    await withTestDb(async (db) => {
+      await writeDay(day("2026-07-24"), db);
+      expect(await recentDays(31, db)).toHaveLength(1);
+    });
+  });
+
+  it("does not leak _id into returned documents", async () => {
+    await withTestDb(async (db) => {
+      await writeDay(day("2026-07-24"), db);
+      expect(await readDay("2026-07-24", db)).not.toHaveProperty("_id");
+      expect((await recentDays(1, db))[0]).not.toHaveProperty("_id");
+    });
   });
 });
